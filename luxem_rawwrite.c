@@ -185,7 +185,7 @@ luxem_bool_t buffer_write(struct buffer_t *buffer, struct luxem_string_t const *
 	size_t remaining = data->length;
 	while (remaining)
 	{
-		if (buffer->bottom->used == 256)
+		if (buffer->bottom->used == 255)
 		{
 			struct buffer_chunk_t *new = buffer_chunk_new();
 			if (!new) return luxem_false;
@@ -194,7 +194,7 @@ luxem_bool_t buffer_write(struct buffer_t *buffer, struct luxem_string_t const *
 		}
 
 		{
-			size_t chunk_length = MIN(256 - buffer->bottom->used, remaining);
+			size_t chunk_length = MIN(255 - buffer->bottom->used, remaining);
 			memcpy(buffer->bottom->pointer + buffer->bottom->used, 
 				data->pointer + data->length - remaining, 
 				chunk_length);

@@ -314,16 +314,18 @@ enum result_t read_words(STATE_ARGS, char delimiter, struct luxem_string_t *out)
 STATE_PROTO(state_type)
 {
 	TRACE;
-	struct luxem_string_t type;
-	enum result_t result = read_words(STATE, ')', &type);
-	if (result == result_continue)
 	{
-		luxem_bool_t callback_result = call_string_callback(context, context->callbacks.type, &type);
-		if (!callback_result) return result_error;
-		return result_continue;
-	}
+		struct luxem_string_t type;
+		enum result_t result = read_words(STATE, ')', &type);
+		if (result == result_continue)
+		{
+			luxem_bool_t callback_result = call_string_callback(context, context->callbacks.type, &type);
+			if (!callback_result) return result_error;
+			return result_continue;
+		}
 
-	return result_hungry;
+		return result_hungry;
+	}
 }
 
 enum result_t read_primitive(STATE_ARGS, luxem_bool_t const key)
@@ -636,35 +638,40 @@ luxem_bool_t luxem_rawread_feed_file(struct luxem_rawread_context_t *context, FI
 			}
 
 			{
-				if (block_callback) block_callback(context, context->callbacks.user_data);
-				size_t increment = fread(buffer.pointer + stop, 1, LUXEM_BUFFER_BLOCK_SIZE, file);
-				if (unblock_callback) unblock_callback(context, context->callbacks.user_data);
-				luxem_bool_t finish = increment == 0;
-				if (finish && ferror(file))
+				if (block_callback) 
+					block_callback(context, context->callbacks.user_data);
 				{
-					SET_ERROR("Encountered error while reading file.");
-					luxem_rawread_buffer_destroy(&buffer);
-					return luxem_false;
-				}
+					size_t increment = fread(buffer.pointer + stop, 1, LUXEM_BUFFER_BLOCK_SIZE, file);
+					if (unblock_callback) unblock_callback(context, context->callbacks.user_data);
+					{
+						luxem_bool_t finish = increment == 0;
+						if (finish && ferror(file))
+						{
+							SET_ERROR("Encountered error while reading file.");
+							luxem_rawread_buffer_destroy(&buffer);
+							return luxem_false;
+						}
 
-				stop += increment;
+						stop += increment;
 
-				string.pointer = buffer.pointer + start;
-				string.length = stop - start;
+						string.pointer = buffer.pointer + start;
+						string.length = stop - start;
 
-				increment = 0;
-				if (!luxem_rawread_feed(context, &string, &increment, finish))
-				{
-					luxem_rawread_buffer_destroy(&buffer);
-					return luxem_false;
-				}
+						increment = 0;
+						if (!luxem_rawread_feed(context, &string, &increment, finish))
+						{
+							luxem_rawread_buffer_destroy(&buffer);
+							return luxem_false;
+						}
 
-				start += increment;
+						start += increment;
 
-				if (finish)
-				{
-					luxem_rawread_buffer_destroy(&buffer);
-					return luxem_true;
+						if (finish)
+						{
+							luxem_rawread_buffer_destroy(&buffer);
+							return luxem_true;
+						}
+					}
 				}
 			}
 		}
