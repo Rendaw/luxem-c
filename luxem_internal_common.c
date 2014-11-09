@@ -21,6 +21,7 @@ luxem_bool_t is_word_char(char value)
 		case '[':
 		case ']':
 		case '"':
+		case '*':
 			return luxem_false;
 		default: return luxem_true;
 	}

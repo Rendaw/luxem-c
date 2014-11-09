@@ -69,7 +69,7 @@ static char eat_one(DATA_ARGS);
 static luxem_bool_t push_state(CONTEXT_ARGS, state_signature_t state);
 static void remove_state(CONTEXT_ARGS, struct stack_t *node);
 static luxem_bool_t is_whitespace(char const value);
-static void eat_whitespace(DATA_ARGS);
+static enum result_t eat_whitespace(STATE_ARGS);
 STATE_PROTO(state_whitespace);
 static enum result_t read_word(STATE_ARGS, struct luxem_string_t *out);
 static enum result_t read_words(STATE_ARGS, char delimiter, struct luxem_string_t *out);
@@ -231,20 +231,33 @@ luxem_bool_t is_whitespace(char const value)
 	}
 }
 
-void eat_whitespace(DATA_ARGS)
+enum result_t eat_whitespace(STATE_ARGS)
 {
 	while (luxem_true)
 	{
 		if (!can_eat_one(DATA)) break;
-		if (!is_whitespace(taste_one(DATA))) break;
-		eat_one(DATA);
+		{
+			char const next = taste_one(DATA);
+			if (next == '*')
+			{
+				eat_one(DATA);
+				if (read_words(STATE, '*', 0) == result_hungry)
+					return result_hungry;
+			}
+			else 
+			{
+				if (!is_whitespace(next)) break;
+				eat_one(DATA);
+			}
+		}
 	}
+	return result_continue;
 }
 
 STATE_PROTO(state_whitespace)
 {
 	TRACE;
-	eat_whitespace(DATA);
+	if (eat_whitespace(STATE) == result_hungry) return result_hungry;
 	if (!finish && !can_eat_one(DATA)) return result_hungry;
 	return result_continue;
 }
@@ -302,8 +315,11 @@ enum result_t read_words(STATE_ARGS, char delimiter, struct luxem_string_t *out)
 			else if (escaped) escaped = luxem_false;
 			else if (next == delimiter)
 			{
-				out->pointer = data->pointer + start;
-				out->length = *eaten - 1 - start;
+				if (out)
+				{
+					out->pointer = data->pointer + start;
+					out->length = *eaten - 1 - start;
+				}
 				return result_continue;
 			}
 		}
@@ -392,7 +408,7 @@ STATE_PROTO(state_value)
 	{
 		case '{':
 			eat_one(DATA);
-			eat_whitespace(DATA);
+			if (eat_whitespace(STATE) == result_hungry) return result_hungry;
 			if (!can_eat_one(DATA)) return result_hungry;
 			if (taste_one(DATA) == '}') PUSH_STATE(state_object_next);
 			else { if (!push_object_state(CONTEXT)) return result_error; }
@@ -401,7 +417,7 @@ STATE_PROTO(state_value)
 			break;
 		case '[': 
 			eat_one(DATA);
-			eat_whitespace(DATA);
+			if (eat_whitespace(STATE) == result_hungry) return result_hungry;
 			if (!can_eat_one(DATA)) return result_hungry;
 			if (taste_one(DATA) == ']') PUSH_STATE(state_array_next);
 			else { if (!push_array_state(CONTEXT)) return result_error; }
@@ -458,7 +474,7 @@ STATE_PROTO(state_object_next)
 		if (next == ',')
 		{
 			eat_one(DATA);
-			eat_whitespace(DATA);
+			if (eat_whitespace(STATE) == result_hungry) return result_hungry;
 			if (!can_eat_one(DATA)) return result_hungry;
 			next = taste_one(DATA);
 		}
@@ -500,7 +516,7 @@ STATE_PROTO(state_array_next)
 		if (next == ',')
 		{
 			eat_one(DATA);
-			eat_whitespace(DATA);
+			if (eat_whitespace(STATE) == result_hungry) return result_hungry;
 			if (!can_eat_one(DATA)) return result_hungry;
 			next = taste_one(DATA);
 		}
