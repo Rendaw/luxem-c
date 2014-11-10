@@ -346,7 +346,23 @@ STATE_PROTO(state_type)
 
 enum result_t read_primitive(STATE_ARGS, luxem_bool_t const key)
 {
-	if (!can_eat_one(DATA)) return result_hungry;
+	if (!can_eat_one(DATA)) 
+	{
+		if (finish)
+		{
+			struct luxem_string_t string;
+			string.pointer = 0;
+			string.length = 0;
+			{
+				luxem_bool_t const callback_result = 
+					key ? call_string_callback(context, context->callbacks.key, &string) :
+					call_string_callback(context, context->callbacks.primitive, &string);
+				if (!callback_result) return result_error;
+			}
+			return result_continue;
+		}
+		else return result_hungry;
+	}
 
 	{
 		struct luxem_string_t string;
@@ -402,7 +418,15 @@ STATE_PROTO(state_value_phrase)
 STATE_PROTO(state_value)
 {
 	TRACE;
-	if (!can_eat_one(DATA)) return result_hungry;
+	if (!can_eat_one(DATA)) 
+	{
+		if (finish)
+		{
+			PUSH_STATE(state_primitive);
+			return result_continue;
+		}
+		else return result_hungry;
+	}
 
 	switch (taste_one(DATA))
 	{
